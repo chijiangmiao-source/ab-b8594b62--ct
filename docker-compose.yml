@@ -1,0 +1,28 @@
+# 岩芯 CT 一维持久同源分析 —— 纯后端编排
+#
+# 宿主机端口通过环境变量 API_HOST_PORT 配置，例如：
+#   API_HOST_PORT=9090 docker compose up --build
+# 默认 8080。容器内监听端口可用 PORT 配置（默认 8000）。
+services:
+  api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: core-ct-persistence:latest
+    container_name: core-ct-persistence
+    environment:
+      PORT: ${PORT:-8000}
+    ports:
+      # 宿主机端口:容器端口 —— 宿主机侧可复现配置
+      - "${API_HOST_PORT:-8080}:${PORT:-8000}"
+    restart: unless-stopped
+    healthcheck:
+      test:
+        - CMD
+        - python
+        - -c
+        - "import json,os,sys,urllib.request; port=os.environ.get('PORT','8000'); r=urllib.request.urlopen('http://127.0.0.1:%s/health'%port, timeout=3); sys.exit(0 if r.status==200 and json.load(r).get('status')=='ok' else 1)"
+      interval: 15s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
